@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRight } from 'lucide-react';
+import AppLayout from '@/components/AppLayout'; // Import the layout
 
 interface Session {
   sessionId: string;
@@ -28,7 +29,6 @@ export default function DashboardPage() {
           throw new Error('Failed to fetch recent sessions');
         }
         const data = await res.json();
-        // Sort sessions by date and take the most recent 3
         const recentSessions = data.sessions
           .sort((a: Session, b: Session) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 3);
@@ -43,7 +43,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <AppLayout> {/* Use the layout component */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Welcome Back!</h1>
@@ -119,6 +119,6 @@ export default function DashboardPage() {
           <p>You haven't completed any sessions yet.</p>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }
