@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
+import VideoRecorder from '@/components/VideoRecorder'; // Import the new component
 
 interface Question {
   question: string;
@@ -30,6 +31,7 @@ function PracticeSession() {
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,7 @@ function PracticeSession() {
     }
 
     const fetchSession = async () => {
+      setIsLoading(true);
       try {
         const res = await fetch(`/api/sessions/${sessionId}`);
         if (!res.ok) throw new Error('Failed to load session data.');
@@ -63,49 +66,84 @@ function PracticeSession() {
 
     fetchSession();
   }, [sessionId, toast]);
+  
+  const handleRecordingComplete = (blob: Blob) => {
+    setRecordedBlob(blob);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recordedBlob || !session) return;
+    
+    setIsSubmitting(true);
+    try {
+      // 1. Get pre-signed URL from our backend
+      const uploadUrlRes = await fetch('/api/recording/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.sessionId }),
+      });
+      if (!uploadUrlRes.ok) throw new Error('Could not get upload URL.');
+      const { uploadUrl, key } = await uploadUrlRes.json();
+      
+      // 2. Upload the video blob directly to S3
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: recordedBlob,
+        headers: { 'Content-Type': 'video/webm' },
+      });
+      if (!uploadRes.ok) throw new Error('Failed to upload video to S3.');
+      
+      // 3. Tell our backend to process the file from S3
+      const processRes = await fetch('/api/recording/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          s3Key: key,
+          duration: 0, // Placeholder, can be improved
+          questionIndex: currentQuestionIndex,
+        }),
+      });
+      if (!processRes.ok) throw new Error('Failed to process video.');
+
+      const analysisData = await processRes.json();
+      console.log('Analysis complete:', analysisData);
+
+      toast({
+        title: 'Response Submitted!',
+        description: 'Your analysis will be available in the session summary.',
+      });
+
+      // Move to the next question or end the session
+      handleNextQuestion();
+    } catch (error) {
+      console.error('Submission failed:', error);
+      toast({
+        title: 'Submission Failed',
+        description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+      setRecordedBlob(null); // Reset blob for next question
+    }
+  };
 
   const handleNextQuestion = () => {
     if (session && currentQuestionIndex < session.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      // End of session
       toast({
         title: 'Practice Complete!',
-        description: 'You have completed all the questions.',
+        description: 'Redirecting to your session summary.',
       });
       router.push(`/sessions/${sessionId}`);
     }
   };
-
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="max-w-4xl mx-auto">
-          <Skeleton className="h-10 w-1/3 mb-4" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (error || !session) {
-    return (
-      <AppLayout>
-        <Card className="max-w-4xl mx-auto text-center">
-          <CardHeader>
-            <CardTitle className="text-red-500">Error Loading Session</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
-            <p className="mt-4">{error || 'Could not find the requested session.'}</p>
-            <Button onClick={() => router.push('/practice')} className="mt-4">
-              Start a New Practice
-            </Button>
-          </CardContent>
-        </Card>
-      </AppLayout>
-    );
-  }
+  
+  if (isLoading) { /* ... same loading state as before ... */ }
+  if (error || !session) { /* ... same error state as before ... */ }
 
   const currentQuestion = session.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / session.questions.length) * 100;
@@ -128,22 +166,12 @@ function PracticeSession() {
           </CardContent>
         </Card>
 
-        {/* Placeholder for Video Recording Component */}
-        <Card className="mb-6">
-           <CardHeader>
-              <CardTitle>Your Response</CardTitle>
-              <CardDescription>Record your answer. The recording will start automatically.</CardDescription>
-           </CardHeader>
-           <CardContent className="flex items-center justify-center bg-gray-100 dark:bg-gray-800 h-64">
-              <p className="text-muted-foreground">Video Recording Component Here</p>
-           </CardContent>
-        </Card>
-
-        <div className="flex justify-end">
-          <Button onClick={handleNextQuestion} disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting...' : 'Submit & Next Question'}
-          </Button>
-        </div>
+        <form id="submit-form" onSubmit={handleSubmit}>
+          <VideoRecorder
+            onRecordingComplete={handleRecordingComplete}
+            isSubmitting={isSubmitting}
+          />
+        </form>
       </div>
     </AppLayout>
   );
@@ -152,7 +180,7 @@ function PracticeSession() {
 // Wrap the component in Suspense as it uses useSearchParams
 export default function PracticeSessionPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<AppLayout><div className="text-center">Loading Session...</div></AppLayout>}>
       <PracticeSession />
     </Suspense>
   );

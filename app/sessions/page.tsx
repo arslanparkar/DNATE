@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import AppLayout from '@/components/AppLayout'; // Import the layout
 
 interface Session {
   sessionId: string;
@@ -15,7 +15,6 @@ interface Session {
   status: string;
   createdAt: string;
   questions: any[];
-  // Add other fields you expect from your API
 }
 
 export default function SessionsPage() {
@@ -31,7 +30,6 @@ export default function SessionsPage() {
           throw new Error('Failed to fetch sessions');
         }
         const data = await res.json();
-        // Sort sessions by most recent first
         const sortedSessions = data.sessions.sort((a: Session, b: Session) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setSessions(sortedSessions);
       } catch (err) {
@@ -44,7 +42,7 @@ export default function SessionsPage() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <AppLayout> {/* Use the layout component */}
       <Card>
         <CardHeader>
           <CardTitle>Session History</CardTitle>
@@ -102,6 +100,6 @@ export default function SessionsPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AppLayout>
   );
 }

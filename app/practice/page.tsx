@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import AppLayout from '@/components/AppLayout'; // Import the layout
 
 interface Persona {
   personaId: string;
@@ -67,38 +68,24 @@ export default function PracticeSetupPage() {
           }),
       });
       if (!res.ok) {
-          throw new Error('Failed to start session');
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to start session');
       }
       const data = await res.json();
-      // Redirect to the session page with session details
       router.push(`/practice/session?sessionId=${data.session.sessionId}`);
     } catch (error) {
         toast({
-            title: 'Error',
-            description: 'Could not start the session. Please try again.',
+            title: 'Error Starting Session',
+            description: error instanceof Error ? error.message : 'Please try again.',
             variant: 'destructive',
         });
     } finally {
         setIsStarting(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Skeleton className="h-12 w-1/4 mb-4" />
-        <Skeleton className="h-8 w-1/2 mb-8" />
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-64 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-8">
+  
+  const PageContent = () => (
+    <>
       <h1 className="text-3xl font-bold mb-2">Practice Mode</h1>
       <p className="text-muted-foreground mb-6">Choose a persona and configure your practice session.</p>
 
@@ -156,6 +143,22 @@ export default function PracticeSetupPage() {
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </>
+  );
+
+  return (
+    <AppLayout> {/* Use the layout component */}
+      {isLoading ? (
+        <div>
+          <Skeleton className="h-12 w-1/4 mb-4" />
+          <Skeleton className="h-8 w-1/2 mb-8" />
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}
+          </div>
+        </div>
+      ) : (
+        <PageContent />
+      )}
+    </AppLayout>
   );
 }
