@@ -1,65 +1,37 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { cookies } from 'next/headers';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const { id } = params
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-    // TODO: Implement get session by ID logic
-    // - Fetch specific session from database
-    // - Include video URL and assessment data
-    // - Verify user has access to this session
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  const cookieStore = cookies();
+  const token = cookieStore.get('token')?.value;
+  const { id } = params;
 
-    console.log("[v0] Get session by ID request:", { id })
-
-    // Mock response
-    return NextResponse.json(
-      {
-        success: true,
-        session: {
-          id,
-          userId: "user_123",
-          questionId: "q1",
-          question: "How would you explain the mechanism of action of our oncology drug?",
-          category: "Product",
-          videoUrl: "/videos/session_1.mp4",
-          duration: 480,
-          createdAt: "2025-01-15T10:30:00.000Z",
-          assessment: {
-            confidence: 4,
-            quality: 4,
-            notes: "Good explanation, could improve pacing",
-          },
-        },
-      },
-      { status: 200 },
-    )
-  } catch (error) {
-    console.error("[v0] Get session error:", error)
-    return NextResponse.json({ success: false, error: "Session not found" }, { status: 404 })
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 });
   }
-}
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'Session ID is required' }), { status: 400 });
+  }
+
   try {
-    const { id } = params
-
-    // TODO: Implement delete session logic
-    // - Verify user owns this session
-    // - Delete video from storage
-    // - Delete session record from database
-
-    console.log("[v0] Delete session request:", { id })
-
-    // Mock response
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Session deleted successfully",
+    const apiRes = await fetch(`${API_BASE_URL}/api/sessions/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
       },
-      { status: 200 },
-    )
+    });
+
+    const data = await apiRes.json();
+
+    if (!apiRes.ok) {
+      return new Response(JSON.stringify(data), { status: apiRes.status });
+    }
+
+    return new Response(JSON.stringify(data), { status: 200 });
+
   } catch (error) {
-    console.error("[v0] Delete session error:", error)
-    return NextResponse.json({ success: false, error: "Failed to delete session" }, { status: 500 })
+    console.error(`Fetch session ${id} error:`, error);
+    return new Response(JSON.stringify({ error: 'Failed to fetch session details' }), { status: 500 });
   }
 }

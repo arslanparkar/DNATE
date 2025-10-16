@@ -1,33 +1,32 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { cookies } from 'next/headers';
 
-export async function GET(request: NextRequest) {
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+export async function GET() {
+  const cookieStore = cookies();
+  const token = cookieStore.get('token')?.value;
+
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 });
+  }
+
   try {
-    // TODO: Implement get current user logic
-    // - Verify JWT token from cookie/header
-    // - Fetch user data from database
-    // - Return user profile
-
-    console.log("[v0] Get current user request")
-
-    // Mock response
-    return NextResponse.json(
-      {
-        success: true,
-        user: {
-          id: "user_123",
-          email: "sarah.johnson@example.com",
-          firstName: "Sarah",
-          lastName: "Johnson",
-          organization: "DNATE Pharma",
-          role: "MSL",
-          avatar: "/professional-avatar.png",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
+    const apiRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
       },
-      { status: 200 },
-    )
+    });
+
+    const data = await apiRes.json();
+
+    if (!apiRes.ok) {
+      return new Response(JSON.stringify(data), { status: apiRes.status });
+    }
+
+    return new Response(JSON.stringify(data), { status: 200 });
+
   } catch (error) {
-    console.error("[v0] Get user error:", error)
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    console.error('Fetch user error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to fetch user data' }), { status: 500 });
   }
 }
