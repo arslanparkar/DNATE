@@ -1,61 +1,118 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import Link from "next/link"
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import Link from 'next/link';
 
 export default function RegisterPage() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (res.ok) {
+        toast({
+          title: 'Registration Successful!',
+          description: 'You can now log in with your new account.',
+        });
+        router.push('/login');
+      } else {
+        const data = await res.json();
+        toast({
+          title: 'Registration Failed',
+          description: data.error || 'Could not create account. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'An Error Occurred',
+        description: 'Something went wrong. Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-[#0077E6]" />
-          <CardTitle className="text-2xl">Create Account</CardTitle>
-          <CardDescription>Start practicing your MSL interview skills</CardDescription>
+    <div className="flex items-center justify-center min-h-screen">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl">Sign Up</CardTitle>
+          <CardDescription>Enter your information to create an account.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" type="text" placeholder="John Doe" required />
+        <form onSubmit={handleSubmit}>
+          <CardContent className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Your Name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@example.com" required />
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" required />
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <Input id="confirm-password" type="password" placeholder="••••••••" required />
-            </div>
-            <div className="flex items-start gap-2">
-              <input type="checkbox" id="terms" className="mt-1 rounded" required />
-              <label htmlFor="terms" className="text-sm text-gray-600">
-                I agree to the{" "}
-                <Link href="/terms" className="text-[#0077E6] hover:underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-[#0077E6] hover:underline">
-                  Privacy Policy
+          </CardContent>
+          <CardFooter>
+            <div className="w-full">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? 'Creating account...' : 'Create account'}
+              </Button>
+              <div className="mt-4 text-center text-sm">
+                Already have an account?{' '}
+                <Link href="/login" className="underline">
+                  Sign in
                 </Link>
-              </label>
+              </div>
             </div>
-            <Button type="submit" className="w-full bg-[#0077E6] hover:bg-[#0056b3]">
-              Create Account
-            </Button>
-          </form>
-          <div className="mt-4 text-center text-sm text-gray-600">
-            Already have an account?{" "}
-            <Link href="/login" className="text-[#0077E6] hover:underline">
-              Sign in
-            </Link>
-          </div>
-        </CardContent>
+          </CardFooter>
+        </form>
       </Card>
     </div>
-  )
+  );
 }
