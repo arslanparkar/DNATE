@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -33,6 +34,7 @@ export default function LoginPage() {
           description: 'You have been logged in successfully.',
         });
         router.push('/dashboard');
+        router.refresh(); // Important to refresh user state
       } else {
         const data = await res.json();
         toast({
@@ -53,7 +55,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
@@ -88,6 +90,7 @@ export default function LoginPage() {
           <CardFooter>
             <div className="w-full">
               <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
               <div className="mt-4 text-center text-sm">

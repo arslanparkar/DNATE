@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Video, Mic, StopCircle, Redo, Send, Loader2 } from 'lucide-react';
+import { Mic, StopCircle, Redo, Send, Loader2 } from 'lucide-react';
 import { useToast } from './ui/use-toast';
 import { Card, CardContent, CardFooter } from './ui/card';
 
@@ -11,49 +11,49 @@ type RecordingState = 'idle' | 'recording' | 'recorded' | 'error';
 interface VideoRecorderProps {
   onRecordingComplete: (blob: Blob) => void;
   isSubmitting: boolean;
+  key: number; // Add key to force re-mount
 }
 
-export default function VideoRecorder({ onRecordingComplete, isSubmitting }: VideoRecorderProps) {
+export default function VideoRecorder({ onRecordingComplete, isSubmitting, key }: VideoRecorderProps) {
   const [state, setState] = useState<RecordingState>('idle');
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
-  const cleanupStream = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
-
   const startCamera = useCallback(async () => {
-    cleanupStream(); // Clean up any existing stream first
     try {
-      const newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      setStream(newStream);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
+        videoRef.current.srcObject = stream;
       }
+      return stream;
     } catch (err) {
       console.error('Error accessing media devices.', err);
       toast({
-        title: 'Camera & Mic Error',
-        description: 'Could not access your camera or microphone. Please check browser permissions and try again.',
+        title: 'Camera Error',
+        description: 'Could not access your camera or microphone. Please check permissions.',
         variant: 'destructive',
       });
       setState('error');
+      return null;
     }
-  }, [toast, cleanupStream]);
+  }, [toast]);
 
   useEffect(() => {
-    startCamera();
-    return cleanupStream; // Ensure cleanup on unmount
-  }, [startCamera, cleanupStream]);
+    let stream: MediaStream | null;
+    const init = async () => {
+      stream = await startCamera();
+    };
+    init();
+    return () => {
+      stream?.getTracks().forEach(track => track.stop());
+    };
+  }, [key, startCamera]);
 
   const handleStartRecording = () => {
-    if (stream) {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
       mediaRecorderRef.current = new MediaRecorder(stream);
       recordedChunksRef.current = [];
 
@@ -67,13 +67,11 @@ export default function VideoRecorder({ onRecordingComplete, isSubmitting }: Vid
         const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         onRecordingComplete(blob);
         setState('recorded');
-        cleanupStream(); // Stop the camera feed after recording
+        (videoRef.current?.srcObject as MediaStream)?.getTracks().forEach(track => track.stop());
       };
 
       mediaRecorderRef.current.start();
       setState('recording');
-    } else {
-        toast({ title: "Camera not ready", description: "Please wait for the camera to start.", variant: "destructive" });
     }
   };
 
@@ -81,12 +79,6 @@ export default function VideoRecorder({ onRecordingComplete, isSubmitting }: Vid
     if (mediaRecorderRef.current && state === 'recording') {
       mediaRecorderRef.current.stop();
     }
-  };
-
-  const handleRecordAgain = () => {
-    recordedChunksRef.current = [];
-    setState('idle');
-    startCamera();
   };
 
   return (
@@ -102,14 +94,14 @@ export default function VideoRecorder({ onRecordingComplete, isSubmitting }: Vid
           )}
            {state === 'recorded' && (
              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <p className="text-white font-semibold">Recording complete. Ready to submit.</p>
+                <p className="text-white font-semibold">Ready to submit for analysis.</p>
              </div>
            )}
         </div>
       </CardContent>
       <CardFooter className="flex justify-center gap-4 p-4">
         {state === 'idle' && (
-          <Button onClick={handleStartRecording} disabled={isSubmitting || !stream}>
+          <Button onClick={handleStartRecording} disabled={isSubmitting}>
             <Mic className="mr-2 h-4 w-4" /> Start Recording
           </Button>
         )}
@@ -120,16 +112,13 @@ export default function VideoRecorder({ onRecordingComplete, isSubmitting }: Vid
         )}
         {state === 'recorded' && (
           <>
-            <Button onClick={handleRecordAgain} variant="outline" disabled={isSubmitting}>
-              <Redo className="mr-2 h-4 w-4" /> Record Again
-            </Button>
             <Button type="submit" form="submit-form" disabled={isSubmitting}>
               {isSubmitting ? (
                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                  <Send className="mr-2 h-4 w-4" />
               )}
-               {isSubmitting ? 'Submitting...' : 'Submit & Continue'}
+               {isSubmitting ? 'Submitting...' : 'Submit & See Analysis'}
             </Button>
           </>
         )}
