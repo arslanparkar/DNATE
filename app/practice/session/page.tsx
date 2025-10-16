@@ -1,58 +1,15 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ArrowLeft, Send, Mic, Video, RotateCcw, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Send, Mic, Video, RotateCcw, CheckCircle2, Loader2 } from "lucide-react"
 import Link from "next/link"
-
-// Mock data - will be replaced with real data later
-const PERSONAS = {
-  oncologist: {
-    name: "Dr. Sarah Chen",
-    title: "Academic Oncologist",
-    specialty: "Oncology",
-    avatar: "/professional-avatar.png",
-    traits: ["Evidence-focused", "Analytical", "Time-pressed"],
-    greeting: "Hello, I'm Dr. Chen. I have a few minutes between patients. What can you tell me about this therapy?",
-  },
-  cardiologist: {
-    name: "Dr. Michael Torres",
-    title: "Community Cardiologist",
-    specialty: "Cardiology",
-    avatar: "/professional-avatar.png",
-    traits: ["Practical", "Risk-averse", "Workflow-focused"],
-    greeting:
-      "Hi there. I'm Dr. Torres. I'm interested in learning more, but I need to understand how this fits into my practice.",
-  },
-  neurologist: {
-    name: "Dr. Jennifer Williams",
-    title: "Community Neurologist",
-    specialty: "Neurology",
-    avatar: "/professional-avatar.png",
-    traits: ["Empathetic", "Skeptical", "Patient-focused"],
-    greeting:
-      "Good morning. I'm Dr. Williams. I care deeply about my patients, so I need to understand the real-world implications.",
-  },
-}
-
-const SAMPLE_QUESTION = {
-  id: "1",
-  text: "Why is this therapy so expensive compared to existing treatments? My patients are already struggling with healthcare costs.",
-  category: "Cost & Value",
-  difficulty: 4,
-  estimatedTime: "90 seconds",
-  context: "The physician is concerned about patient access and affordability",
-  keyPoints: [
-    "Acknowledge cost concerns",
-    "Explain value proposition",
-    "Discuss patient assistance programs",
-    "Compare total cost of care",
-  ],
-}
+import { personasApi, questionsApi, sessionsApi } from "@/lib/api"
 
 type Message = {
   id: string
@@ -64,17 +21,25 @@ type Message = {
 type SessionStage = "setup" | "greeting" | "question" | "responding" | "assessment" | "complete"
 
 export default function PracticeSessionPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const questionId = searchParams.get("questionId")
+
+  const [personas, setPersonas] = useState<any[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState<any>(null)
+  const [currentSession, setCurrentSession] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const [stage, setStage] = useState<SessionStage>("setup")
-  const [selectedPersona, setSelectedPersona] = useState<keyof typeof PERSONAS | null>(null)
+  const [selectedPersona, setSelectedPersona] = useState<any>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [userResponse, setUserResponse] = useState("")
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordingTime, setRecordingTime] = useState(0)
+  const [responseStartTime, setResponseStartTime] = useState<number>(0)
   const [confidence, setConfidence] = useState(0)
   const [quality, setQuality] = useState(0)
   const [notes, setNotes] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -85,60 +50,76 @@ export default function PracticeSessionPage() {
   }, [messages])
 
   useEffect(() => {
-    if (isRecording) {
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1)
-      }, 1000)
-    } else {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current)
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const personasData = await personasApi.getAll()
+        setPersonas(personasData.personas || [])
+
+        if (questionId) {
+          const questionData = await questionsApi.getById(questionId)
+          setCurrentQuestion(questionData.question)
+        } else {
+          const randomQuestion = await questionsApi.getRandom()
+          setCurrentQuestion(randomQuestion.question)
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load data")
+      } finally {
+        setLoading(false)
       }
     }
-    return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current)
-      }
-    }
-  }, [isRecording])
 
-  const startSession = (persona: keyof typeof PERSONAS) => {
-    setSelectedPersona(persona)
-    setStage("greeting")
+    fetchData()
+  }, [questionId])
 
-    // Add system message
-    const systemMsg: Message = {
-      id: "1",
-      role: "system",
-      content: `Practice session started with ${PERSONAS[persona].name}`,
-      timestamp: new Date(),
-    }
+  const startSession = async (persona: any) => {
+    try {
+      setSelectedPersona(persona)
+      setStage("greeting")
 
-    // Add greeting from physician
-    setTimeout(() => {
-      const greetingMsg: Message = {
-        id: "2",
-        role: "physician",
-        content: PERSONAS[persona].greeting,
+      // Create session via API
+      const sessionData = await sessionsApi.start({ personaId: persona.id })
+      setCurrentSession(sessionData.session)
+      setResponseStartTime(Date.now())
+
+      // Add system message
+      const systemMsg: Message = {
+        id: "1",
+        role: "system",
+        content: `Practice session started with ${persona.name}`,
         timestamp: new Date(),
       }
-      setMessages([systemMsg, greetingMsg])
 
-      // After greeting, show the question
+      // Add greeting from physician
       setTimeout(() => {
-        const questionMsg: Message = {
-          id: "3",
+        const greetingMsg: Message = {
+          id: "2",
           role: "physician",
-          content: SAMPLE_QUESTION.text,
+          content: persona.greeting || `Hello, I'm ${persona.name}. What can you tell me about this therapy?`,
           timestamp: new Date(),
         }
-        setMessages((prev) => [...prev, questionMsg])
-        setStage("question")
-      }, 2000)
-    }, 500)
+        setMessages([systemMsg, greetingMsg])
+
+        // After greeting, show the question
+        setTimeout(() => {
+          const questionMsg: Message = {
+            id: "3",
+            role: "physician",
+            content: currentQuestion?.text || "Tell me more about this treatment.",
+            timestamp: new Date(),
+          }
+          setMessages((prev) => [...prev, questionMsg])
+          setStage("question")
+        }, 2000)
+      }, 500)
+    } catch (err: any) {
+      setError(err.message || "Failed to start session")
+    }
   }
 
-  const handleSendResponse = () => {
-    if (!userResponse.trim()) return
+  const handleSendResponse = async () => {
+    if (!userResponse.trim() || !currentSession || !currentQuestion) return
 
     const responseMsg: Message = {
       id: Date.now().toString(),
@@ -148,44 +129,81 @@ export default function PracticeSessionPage() {
     }
 
     setMessages((prev) => [...prev, responseMsg])
-    setUserResponse("")
 
-    // Physician acknowledgment
-    setTimeout(() => {
-      const ackMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "physician",
-        content: "Thank you for that explanation. I appreciate you taking the time to address my concerns.",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, ackMsg])
+    // Calculate time spent
+    const timeSpent = Math.floor((Date.now() - responseStartTime) / 1000)
 
-      // Move to assessment
+    try {
+      // Submit answer to API
+      await sessionsApi.answer(currentSession.id, {
+        questionId: currentQuestion.id,
+        answer: userResponse,
+        timeSpent,
+      })
+
+      setUserResponse("")
+
+      // Physician acknowledgment
       setTimeout(() => {
-        setStage("assessment")
-      }, 1500)
-    }, 1000)
+        const ackMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "physician",
+          content: "Thank you for that explanation. I appreciate you taking the time to address my concerns.",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, ackMsg])
+
+        // Move to assessment
+        setTimeout(() => {
+          setStage("assessment")
+        }, 1500)
+      }, 1000)
+    } catch (err: any) {
+      setError(err.message || "Failed to submit answer")
+    }
   }
 
-  const handleSubmitAssessment = () => {
-    setStage("complete")
+  const handleSubmitAssessment = async () => {
+    if (!currentSession) return
+
+    try {
+      await sessionsApi.complete(currentSession.id, {
+        confidenceRating: confidence,
+        qualityRating: quality,
+        notes,
+      })
+      setStage("complete")
+    } catch (err: any) {
+      setError(err.message || "Failed to complete session")
+    }
   }
 
   const handleStartOver = () => {
-    setStage("setup")
-    setSelectedPersona(null)
-    setMessages([])
-    setUserResponse("")
-    setRecordingTime(0)
-    setConfidence(0)
-    setQuality(0)
-    setNotes("")
+    router.push("/practice")
   }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F5F5F5]">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#0077E6]" />
+          <p className="mt-4 text-[#404A69]">Loading practice session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F5F5F5]">
+        <div className="text-center">
+          <p className="text-red-600">{error}</p>
+          <Link href="/practice">
+            <Button className="mt-4 bg-[#0077E6] hover:bg-[#0056b3]">Back to Practice</Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   // Setup Stage - Persona Selection
@@ -207,33 +225,27 @@ export default function PracticeSessionPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
-              {Object.entries(PERSONAS).map(([key, persona]) => (
+              {personas.map((persona) => (
                 <Card
-                  key={key}
+                  key={persona.id}
                   className="cursor-pointer transition-all hover:shadow-xl hover:scale-105"
-                  onClick={() => startSession(key as keyof typeof PERSONAS)}
+                  onClick={() => startSession(persona)}
                 >
                   <CardContent className="p-6">
                     <div className="mb-4 flex justify-center">
                       <Avatar className="h-24 w-24">
-                        <AvatarImage src={persona.avatar || "/placeholder.svg"} />
+                        <AvatarImage src="/placeholder.svg" />
                         <AvatarFallback className="bg-[#0077E6] text-white text-2xl">
                           {persona.name
                             .split(" ")
-                            .map((n) => n[0])
+                            .map((n: string) => n[0])
                             .join("")}
                         </AvatarFallback>
                       </Avatar>
                     </div>
                     <h3 className="mb-1 text-center text-xl font-bold text-[#1B0020]">{persona.name}</h3>
                     <p className="mb-4 text-center text-sm text-[#404A69]">{persona.title}</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {persona.traits.map((trait, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {trait}
-                        </Badge>
-                      ))}
-                    </div>
+                    <p className="mb-4 text-center text-xs text-[#404A69]">{persona.specialty}</p>
                     <Button className="mt-6 w-full bg-[#0077E6] hover:bg-[#0056b3]">Start Session</Button>
                   </CardContent>
                 </Card>
@@ -246,7 +258,7 @@ export default function PracticeSessionPage() {
   }
 
   // Chat Interface - Active Session
-  const persona = selectedPersona ? PERSONAS[selectedPersona] : null
+  const persona = selectedPersona ? selectedPersona : null
 
   return (
     <div className="flex h-screen flex-col bg-[#F5F5F5]">
@@ -262,11 +274,11 @@ export default function PracticeSessionPage() {
             {persona && (
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={persona.avatar || "/placeholder.svg"} />
+                  <AvatarImage src="/placeholder.svg" />
                   <AvatarFallback className="bg-[#0077E6] text-white">
                     {persona.name
                       .split(" ")
-                      .map((n) => n[0])
+                      .map((n: string) => n[0])
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
@@ -278,12 +290,11 @@ export default function PracticeSessionPage() {
             )}
           </div>
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-[#0077E6] text-[#0077E6]">
-              {SAMPLE_QUESTION.category}
-            </Badge>
-            {stage === "question" || stage === "responding" ? (
-              <div className="text-sm text-[#404A69]">Estimated: {SAMPLE_QUESTION.estimatedTime}</div>
-            ) : null}
+            {currentQuestion && (
+              <Badge variant="outline" className="border-[#0077E6] text-[#0077E6]">
+                {currentQuestion.category}
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -305,11 +316,11 @@ export default function PracticeSessionPage() {
                     <div className={`flex gap-3 ${message.role === "msl" ? "flex-row-reverse" : "flex-row"}`}>
                       {message.role === "physician" && persona && (
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={persona.avatar || "/placeholder.svg"} />
+                          <AvatarImage src="/placeholder.svg" />
                           <AvatarFallback className="bg-[#0077E6] text-white text-xs">
                             {persona.name
                               .split(" ")
-                              .map((n) => n[0])
+                              .map((n: string) => n[0])
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
@@ -345,18 +356,6 @@ export default function PracticeSessionPage() {
       {stage === "question" && (
         <div className="border-t bg-white px-6 py-4 shadow-lg">
           <div className="mx-auto max-w-4xl">
-            <div className="mb-3 flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                Key Points to Cover
-              </Badge>
-            </div>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {SAMPLE_QUESTION.keyPoints.map((point, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
-                  {point}
-                </Badge>
-              ))}
-            </div>
             <div className="flex gap-3">
               <Textarea
                 placeholder="Type your response here... (or use voice/video recording)"

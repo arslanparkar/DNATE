@@ -13,19 +13,25 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Home, Video, BarChart3, BookOpen, User, LogOut, Settings } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 export function Navbar() {
   const pathname = usePathname()
+  const { user, logout } = useAuth()
 
   const isActive = (path: string) => pathname === path
 
-  // Mock user data - in production this would come from auth context
-  const user = {
-    name: "Dr. Sarah Johnson",
-    email: "sarah.johnson@example.com",
-    avatar: "/professional-avatar.png",
-    initials: "SJ",
+  const handleLogout = () => {
+    logout()
   }
+
+  const userInitials = user?.name
+    ? user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+    : "U"
 
   return (
     <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
@@ -91,16 +97,16 @@ export function Navbar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                <AvatarFallback className="bg-[#0077E6] text-white">{user.initials}</AvatarFallback>
+                <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
+                <AvatarFallback className="bg-[#0077E6] text-white">{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.name}</p>
-                <p className="text-xs leading-none text-gray-500">{user.email}</p>
+                <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
+                <p className="text-xs leading-none text-gray-500">{user?.email || ""}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -123,7 +129,7 @@ export function Navbar() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-600">
+            <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

@@ -103,6 +103,13 @@ export const recordingsApi = {
   getAll: (sessionId: string) => fetchApi<{ recordings: any[] }>(`/sessions/${sessionId}/recordings`),
 }
 
+// Questions APIs
+export const questionsApi = {
+  getAll: () => fetchApi<{ questions: any[] }>("/questions"),
+  getById: (id: string) => fetchApi<{ question: any }>(`/questions/${id}`),
+  getRandom: () => fetchApi<{ question: any }>("/questions/random"),
+}
+
 // Health check
 export const healthApi = {
   check: () => fetchApi<{ status: string; database: string }>("/health"),
