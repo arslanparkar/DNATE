@@ -1,5 +1,6 @@
 import React from 'react';
-import Navbar from './navbar';
+// Change this line to use a named import
+import { Navbar } from './navbar'; 
 
 interface AppLayoutProps {
   children: React.ReactNode;
