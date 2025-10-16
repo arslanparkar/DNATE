@@ -9,13 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import { AlertCircle } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
-import VideoRecorder from '@/components/VideoRecorder'; // Import the new component
+import VideoRecorder from '@/components/VideoRecorder';
 
+// Interfaces
 interface Question {
   question: string;
   category: string;
   difficulty: string;
-  timeLimit: number;
 }
 
 interface SessionData {
@@ -24,6 +24,7 @@ interface SessionData {
   questions: Question[];
 }
 
+// The main component logic
 function PracticeSession() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -40,7 +41,7 @@ function PracticeSession() {
 
   useEffect(() => {
     if (!sessionId) {
-      setError('No session ID provided.');
+      setError('No session ID provided. Please start a new practice session.');
       setIsLoading(false);
       return;
     }
@@ -53,12 +54,9 @@ function PracticeSession() {
         const data = await res.json();
         setSession(data.session);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        toast({
-          title: 'Error',
-          description: 'Could not load the practice session.',
-          variant: 'destructive',
-        });
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+        setError(errorMessage);
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
       } finally {
         setIsLoading(false);
       }
@@ -73,11 +71,14 @@ function PracticeSession() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recordedBlob || !session) return;
+    if (!recordedBlob || !session) {
+        toast({ title: 'No Recording Found', description: 'Please record your response before submitting.', variant: 'destructive' });
+        return;
+    }
     
     setIsSubmitting(true);
     try {
-      // 1. Get pre-signed URL from our backend
+      // Step 1: Get pre-signed URL from our backend
       const uploadUrlRes = await fetch('/api/recording/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,47 +87,36 @@ function PracticeSession() {
       if (!uploadUrlRes.ok) throw new Error('Could not get upload URL.');
       const { uploadUrl, key } = await uploadUrlRes.json();
       
-      // 2. Upload the video blob directly to S3
+      // Step 2: Upload the video blob directly to S3
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: recordedBlob,
         headers: { 'Content-Type': 'video/webm' },
       });
-      if (!uploadRes.ok) throw new Error('Failed to upload video to S3.');
+      if (!uploadRes.ok) throw new Error('Failed to upload video.');
       
-      // 3. Tell our backend to process the file from S3
+      // Step 3: Tell our backend to process the file from S3
+      toast({ title: 'Upload Complete!', description: 'Analyzing your response... This may take a moment.' });
       const processRes = await fetch('/api/recording/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: session.sessionId,
           s3Key: key,
-          duration: 0, // Placeholder, can be improved
+          duration: 0,
           questionIndex: currentQuestionIndex,
         }),
       });
-      if (!processRes.ok) throw new Error('Failed to process video.');
-
-      const analysisData = await processRes.json();
-      console.log('Analysis complete:', analysisData);
-
-      toast({
-        title: 'Response Submitted!',
-        description: 'Your analysis will be available in the session summary.',
-      });
-
-      // Move to the next question or end the session
+      if (!processRes.ok) throw new Error('Failed to process your response.');
+      
+      toast({ title: 'Analysis Complete!', description: 'Moving to the next question.' });
       handleNextQuestion();
     } catch (error) {
-      console.error('Submission failed:', error);
-      toast({
-        title: 'Submission Failed',
-        description: error instanceof Error ? error.message : 'An unknown error occurred.',
-        variant: 'destructive',
-      });
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      toast({ title: 'Submission Failed', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
-      setRecordedBlob(null); // Reset blob for next question
+      setRecordedBlob(null);
     }
   };
 
@@ -134,16 +124,37 @@ function PracticeSession() {
     if (session && currentQuestionIndex < session.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      toast({
-        title: 'Practice Complete!',
-        description: 'Redirecting to your session summary.',
-      });
+      toast({ title: 'Practice Complete!', description: 'Redirecting to your session summary.' });
       router.push(`/sessions/${sessionId}`);
     }
   };
   
-  if (isLoading) { /* ... same loading state as before ... */ }
-  if (error || !session) { /* ... same error state as before ... */ }
+  // Loading and Error states
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error || !session) {
+    return (
+      <AppLayout>
+        <Card className="max-w-lg mx-auto text-center">
+          <CardHeader><CardTitle className="text-red-500">Error</CardTitle></CardHeader>
+          <CardContent>
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+            <p className="mt-4">{error}</p>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
 
   const currentQuestion = session.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / session.questions.length) * 100;
@@ -177,10 +188,10 @@ function PracticeSession() {
   );
 }
 
-// Wrap the component in Suspense as it uses useSearchParams
+// Wrapper component to handle Suspense
 export default function PracticeSessionPage() {
   return (
-    <Suspense fallback={<AppLayout><div className="text-center">Loading Session...</div></AppLayout>}>
+    <Suspense fallback={<AppLayout><div className="text-center p-8">Loading Session...</div></AppLayout>}>
       <PracticeSession />
     </Suspense>
   );

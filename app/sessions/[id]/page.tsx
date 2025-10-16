@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Star } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Separator } from '@/components/ui/separator';
 
+// Define interfaces for our data structure
 interface Score {
   clarity: number;
   confidence: number;
@@ -30,7 +32,6 @@ interface Recording {
   questionIndex: number;
   transcription: string;
   analysis: Analysis;
-  downloadUrl?: string; // Will be fetched on demand
 }
 
 interface SessionDetails {
@@ -40,6 +41,14 @@ interface SessionDetails {
   recordings: Recording[];
   createdAt: string;
 }
+
+// A small progress bar component for displaying scores
+const ScoreProgress = ({ value }: { value: number }) => (
+    <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full">
+        <div className="h-2 bg-primary rounded-full" style={{ width: `${value * 10}%` }}></div>
+    </div>
+);
+
 
 export default function SessionDetailPage({ params }: { params: { id: string } }) {
   const [session, setSession] = useState<SessionDetails | null>(null);
@@ -63,24 +72,24 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
     };
     fetchSessionDetails();
   }, [sessionId]);
-  
+
   const renderScore = (label: string, score: number) => (
-    <div className="flex justify-between items-center">
-      <span className="text-sm">{label}</span>
-      <div className="flex items-center gap-2">
-        <Progress value={score * 10} className="w-24 h-2" />
-        <span className="font-semibold">{score.toFixed(1)}</span>
+    <div key={label} className="grid grid-cols-3 items-center gap-2">
+      <span className="text-sm text-muted-foreground col-span-1">{label}</span>
+      <div className="col-span-2 flex items-center gap-2">
+        <ScoreProgress value={score} />
+        <span className="font-semibold text-sm w-8 text-right">{score.toFixed(1)}</span>
       </div>
     </div>
   );
-
+  
   if (isLoading) {
     return (
       <AppLayout>
         <Skeleton className="h-10 w-1/2 mb-6" />
         <div className="space-y-4">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       </AppLayout>
     );
@@ -89,9 +98,9 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
   if (error || !session) {
     return (
       <AppLayout>
-        <Card className="text-center">
+        <Card className="text-center max-w-lg mx-auto">
           <CardHeader>
-            <CardTitle className="text-red-500">Error</CardTitle>
+            <CardTitle className="text-red-500">Error Loading Session</CardTitle>
           </CardHeader>
           <CardContent>
             <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
@@ -104,29 +113,30 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
 
   return (
     <AppLayout>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Session Review</h1>
-        <p className="text-muted-foreground">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold">Session Review</h1>
+        <p className="text-lg text-muted-foreground">
           Practice with {session.personaName} on {new Date(session.createdAt).toLocaleDateString()}
         </p>
       </div>
       
-      <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
-        {session.recordings.map((rec, index) => (
-          <AccordionItem value={`item-${index}`} key={rec.s3Key}>
-            <AccordionTrigger>
-                Question {rec.questionIndex + 1}: {session.questions[rec.questionIndex].question.slice(0, 80)}...
+      <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="item-0">
+        {(session.recordings || []).map((rec, index) => (
+          <AccordionItem value={`item-${index}`} key={rec.s3Key || index} className="border rounded-lg">
+            <AccordionTrigger className="p-4 text-left">
+              <span className="font-semibold">Question {rec.questionIndex + 1}:</span>&nbsp;
+              <span className="text-muted-foreground font-normal">
+                {session.questions[rec.questionIndex].question.slice(0, 100)}...
+              </span>
             </AccordionTrigger>
-            <AccordionContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left side: Video and Transcription */}
-                <div className="space-y-4">
+            <AccordionContent className="p-4 border-t">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-3 space-y-4">
                    <Card>
                       <CardHeader><CardTitle>Your Response</CardTitle></CardHeader>
                       <CardContent>
-                         {/* Placeholder for video player */}
-                         <div className="bg-black aspect-video rounded-md flex items-center justify-center">
-                            <p className="text-white">Video Player for {rec.s3Key}</p>
+                         <div className="bg-black aspect-video rounded-md flex items-center justify-center text-white">
+                            Video Player Placeholder
                          </div>
                       </CardContent>
                    </Card>
@@ -138,35 +148,32 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
                    </Card>
                 </div>
 
-                {/* Right side: AI Analysis */}
-                <Card>
+                <Card className="lg:col-span-2">
                   <CardHeader>
                     <CardTitle>AI Performance Analysis</CardTitle>
                     <div className="flex items-center gap-2 pt-2">
-                        <Badge>Overall Score</Badge>
+                        <Badge variant="secondary">Overall Score</Badge>
                         <span className="text-2xl font-bold">{rec.analysis.scores.overall.toFixed(1)} / 10</span>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                      <div>
-                        <h4 className="font-semibold mb-2">Score Breakdown</h4>
+                        <h4 className="font-semibold mb-2 text-sm">Score Breakdown</h4>
                         <div className="space-y-2">
-                           {renderScore('Clarity', rec.analysis.scores.clarity)}
-                           {renderScore('Confidence', rec.analysis.scores.confidence)}
-                           {renderScore('Relevance', rec.analysis.scores.relevance)}
-                           {renderScore('Medical Accuracy', rec.analysis.scores.accuracy)}
-                           {renderScore('Professionalism', rec.analysis.scores.professionalism)}
+                           {Object.entries(rec.analysis.scores).filter(([key]) => key !== 'overall').map(([key, value]) => renderScore(key.charAt(0).toUpperCase() + key.slice(1), value))}
                         </div>
                      </div>
+                     <Separator />
                      <div>
-                        <h4 className="font-semibold mb-2">Strengths</h4>
-                        <ul className="list-disc list-inside text-sm space-y-1">
+                        <h4 className="font-semibold mb-2 text-sm">Strengths</h4>
+                        <ul className="list-disc list-inside text-sm space-y-1 text-green-700 dark:text-green-400">
                            {rec.analysis.strengths.map((s, i) => <li key={i}>{s}</li>)}
                         </ul>
                      </div>
+                     <Separator />
                      <div>
-                        <h4 className="font-semibold mb-2">Areas for Improvement</h4>
-                        <ul className="list-disc list-inside text-sm space-y-1">
+                        <h4 className="font-semibold mb-2 text-sm">Areas for Improvement</h4>
+                        <ul className="list-disc list-inside text-sm space-y-1 text-yellow-700 dark:text-yellow-400">
                            {rec.analysis.improvements.map((imp, i) => <li key={i}>{imp}</li>)}
                         </ul>
                      </div>
@@ -176,14 +183,10 @@ export default function SessionDetailPage({ params }: { params: { id: string } }
             </AccordionContent>
           </AccordionItem>
         ))}
+         {(!session.recordings || session.recordings.length === 0) && (
+            <p className="text-center text-muted-foreground py-8">No recordings found for this session.</p>
+        )}
       </Accordion>
     </AppLayout>
   );
 }
-
-// Simple Progress component to be used inside this file
-const Progress = ({ value, className }: { value: number; className?: string }) => (
-    <div className={`h-2 bg-gray-200 rounded-full ${className}`}>
-        <div className="h-full bg-primary rounded-full" style={{ width: `${value}%` }}></div>
-    </div>
-);
