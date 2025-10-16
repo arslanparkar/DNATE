@@ -22,17 +22,39 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
     headers["Authorization"] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
+  console.log("[v0] API Call:", {
+    url: `${API_BASE_URL}${endpoint}`,
+    method: options.method || "GET",
+    hasToken: !!token,
   })
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "An error occurred" }))
-    throw new ApiError(response.status, error.message || "An error occurred")
-  }
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    })
 
-  return response.json()
+    console.log("[v0] API Response:", {
+      url: `${API_BASE_URL}${endpoint}`,
+      status: response.status,
+      ok: response.ok,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "An error occurred" }))
+      console.error("[v0] API Error:", {
+        url: `${API_BASE_URL}${endpoint}`,
+        status: response.status,
+        error,
+      })
+      throw new ApiError(response.status, error.message || `API Error: ${response.status}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error("[v0] Fetch Error:", error)
+    throw error
+  }
 }
 
 // Auth APIs

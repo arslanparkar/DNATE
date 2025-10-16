@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { questionsApi } from "@/lib/api"
-import { Loader2 } from "lucide-react"
+import { Loader2, AlertCircle } from "lucide-react"
 
 export default function PracticePage() {
   const [questions, setQuestions] = useState<any[]>([])
@@ -17,10 +17,14 @@ export default function PracticePage() {
     const fetchQuestions = async () => {
       try {
         setLoading(true)
+        setError(null)
+        console.log("[v0] Fetching questions...")
         const data = await questionsApi.getAll()
+        console.log("[v0] Questions received:", data)
         setQuestions(data.questions || [])
       } catch (err: any) {
-        setError(err.message || "Failed to load questions")
+        console.error("[v0] Error fetching questions:", err)
+        setError(err.message || "Failed to load questions. The backend API may not be ready yet.")
       } finally {
         setLoading(false)
       }
@@ -61,8 +65,35 @@ export default function PracticePage() {
             <Loader2 className="h-8 w-8 animate-spin text-[#0077E6]" />
           </div>
         ) : error ? (
-          <div className="rounded-lg bg-red-50 p-6 text-center">
-            <p className="text-red-600">{error}</p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-8">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="mb-2 text-lg font-semibold text-red-900">Unable to Load Questions</h3>
+                <p className="mb-4 text-red-700">{error}</p>
+                <div className="rounded bg-red-100 p-4 text-sm text-red-800">
+                  <p className="mb-2 font-semibold">Possible reasons:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>
+                      The backend API endpoint <code className="bg-red-200 px-1 rounded">/api/questions</code> may not
+                      be implemented yet
+                    </li>
+                    <li>The backend server may be down or unreachable</li>
+                    <li>Authentication token may be invalid or expired</li>
+                  </ul>
+                </div>
+                <div className="mt-4 flex gap-3">
+                  <Button onClick={() => window.location.reload()} variant="outline" className="bg-white">
+                    Try Again
+                  </Button>
+                  <Link href="/dashboard">
+                    <Button variant="outline" className="bg-white">
+                      Go to Dashboard
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         ) : questions.length === 0 ? (
           <div className="rounded-lg bg-gray-50 p-6 text-center">

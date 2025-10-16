@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ArrowLeft, Send, Mic, Video, RotateCcw, CheckCircle2, Loader2 } from "lucide-react"
+import { ArrowLeft, Send, Mic, Video, RotateCcw, CheckCircle2, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { personasApi, questionsApi, sessionsApi } from "@/lib/api"
 
@@ -53,18 +53,28 @@ export default function PracticeSessionPage() {
     const fetchData = async () => {
       try {
         setLoading(true)
+        setError(null)
+
+        console.log("[v0] Fetching personas and questions...")
+
         const personasData = await personasApi.getAll()
+        console.log("[v0] Personas received:", personasData)
         setPersonas(personasData.personas || [])
 
         if (questionId) {
+          console.log("[v0] Fetching specific question:", questionId)
           const questionData = await questionsApi.getById(questionId)
+          console.log("[v0] Question received:", questionData)
           setCurrentQuestion(questionData.question)
         } else {
+          console.log("[v0] Fetching random question...")
           const randomQuestion = await questionsApi.getRandom()
+          console.log("[v0] Random question received:", randomQuestion)
           setCurrentQuestion(randomQuestion.question)
         }
       } catch (err: any) {
-        setError(err.message || "Failed to load data")
+        console.error("[v0] Error fetching data:", err)
+        setError(err.message || "Failed to load practice session data. The backend API may not be ready yet.")
       } finally {
         setLoading(false)
       }
@@ -195,12 +205,39 @@ export default function PracticeSessionPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#F5F5F5]">
-        <div className="text-center">
-          <p className="text-red-600">{error}</p>
-          <Link href="/practice">
-            <Button className="mt-4 bg-[#0077E6] hover:bg-[#0056b3]">Back to Practice</Button>
-          </Link>
+      <div className="flex h-screen items-center justify-center bg-[#F5F5F5] p-4">
+        <div className="max-w-2xl w-full rounded-lg border border-red-200 bg-red-50 p-8">
+          <div className="flex items-start gap-4">
+            <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-1" />
+            <div className="flex-1">
+              <h3 className="mb-2 text-lg font-semibold text-red-900">Unable to Load Practice Session</h3>
+              <p className="mb-4 text-red-700">{error}</p>
+              <div className="rounded bg-red-100 p-4 text-sm text-red-800">
+                <p className="mb-2 font-semibold">Possible reasons:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>
+                    The backend API endpoints <code className="bg-red-200 px-1 rounded">/api/personas</code> or{" "}
+                    <code className="bg-red-200 px-1 rounded">/api/questions</code> may not be implemented yet
+                  </li>
+                  <li>The backend server may be experiencing issues</li>
+                  <li>Your authentication token may have expired</li>
+                </ul>
+              </div>
+              <div className="mt-4 flex gap-3">
+                <Button onClick={() => window.location.reload()} variant="outline" className="bg-white">
+                  Try Again
+                </Button>
+                <Link href="/practice">
+                  <Button variant="outline" className="bg-white">
+                    Back to Practice
+                  </Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button className="bg-[#0077E6] hover:bg-[#0056b3]">Go to Dashboard</Button>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )
