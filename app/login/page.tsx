@@ -1,108 +1,102 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
-import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import Link from "next/link"
+import { useAuth } from "@/lib/auth-context"
+import { ApiError } from "@/lib/api"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
+  const router = useRouter()
+  const { login } = useAuth()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+    e.preventDefault()
+    setError("")
+    setIsLoading(true)
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (res.ok) {
-        toast({
-          title: 'Success!',
-          description: 'You have been logged in successfully.',
-        });
-        router.push('/dashboard');
-        router.refresh(); // Important to refresh user state
+      await login(email, password)
+      router.push("/dashboard")
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
       } else {
-        const data = await res.json();
-        toast({
-          title: 'Login Failed',
-          description: data.error || 'Invalid credentials. Please try again.',
-          variant: 'destructive',
-        });
+        setError("An unexpected error occurred. Please try again.")
       }
-    } catch (error) {
-      toast({
-        title: 'An Error Occurred',
-        description: 'Something went wrong. Please try again later.',
-        variant: 'destructive',
-      });
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>Enter your email below to login to your account.</CardDescription>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-lg bg-[#0077E6]" />
+          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardDescription>Sign in to continue practicing</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">{error}</div>
+            )}
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="m@example.com"
+                placeholder="you@example.com"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
               />
             </div>
-          </CardContent>
-          <CardFooter>
-            <div className="w-full">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? 'Signing in...' : 'Sign in'}
-              </Button>
-              <div className="mt-4 text-center text-sm">
-                Don't have an account?{' '}
-                <Link href="/register" className="underline">
-                  Sign up
-                </Link>
-              </div>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" className="rounded" />
+                Remember me
+              </label>
+              <Link href="/forgot-password" className="text-sm text-[#0077E6] hover:underline">
+                Forgot password?
+              </Link>
             </div>
-          </CardFooter>
-        </form>
+            <Button type="submit" className="w-full bg-[#0077E6] hover:bg-[#0056b3]" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+          <div className="mt-4 text-center text-sm text-gray-600">
+            Don't have an account?{" "}
+            <Link href="/register" className="text-[#0077E6] hover:underline">
+              Sign up
+            </Link>
+          </div>
+        </CardContent>
       </Card>
     </div>
-  );
+  )
 }

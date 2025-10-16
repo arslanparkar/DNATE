@@ -1,42 +1,38 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { type NextRequest, NextResponse } from "next/server"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json()
+    const { email, password, firstName, lastName, organization, role } = body
 
-    const apiRes = await fetch(`${API_BASE_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    // TODO: Implement user registration logic
+    // - Validate input data
+    // - Hash password
+    // - Create user in database
+    // - Send verification email
+    // - Return user data and auth token
 
-    const data = await apiRes.json();
+    console.log("[v0] Register request:", { email, firstName, lastName, organization, role })
 
-    if (!apiRes.ok) {
-      return new Response(JSON.stringify(data), { status: apiRes.status });
-    }
-    
-    const { token, user } = data;
-     const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: '/',
-    };
-
-    const cookieString = `token=${token}; HttpOnly; Path=/; Max-Age=${cookieOptions.maxAge}; SameSite=Lax${cookieOptions.secure ? '; Secure' : ''}`;
-
-    const response = new Response(JSON.stringify({ user }), {
-      status: 200,
-      headers: {
-        'Set-Cookie': cookieString,
+    // Mock response
+    return NextResponse.json(
+      {
+        success: true,
+        message: "User registered successfully",
+        user: {
+          id: "user_123",
+          email,
+          firstName,
+          lastName,
+          organization,
+          role,
+          createdAt: new Date().toISOString(),
+        },
       },
-    });
-
-    return response;
-
+      { status: 201 },
+    )
   } catch (error) {
-    console.error('Registration API error:', error);
-    return new Response(JSON.stringify({ error: 'An error occurred during registration' }), { status: 500 });
+    console.error("[v0] Registration error:", error)
+    return NextResponse.json({ success: false, error: "Registration failed" }, { status: 500 })
   }
 }

@@ -1,37 +1,44 @@
-import { cookies } from 'next/headers';
+import { type NextRequest, NextResponse } from "next/server"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-export async function POST(request: Request) {
-  const cookieStore = cookies();
-  const token = cookieStore.get('token')?.value;
-
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 });
-  }
-
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
+    const { searchParams } = new URL(request.url)
+    const category = searchParams.get("category")
+    const difficulty = searchParams.get("difficulty")
 
-    const apiRes = await fetch(`${API_BASE_URL}/api/sessions/start`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+    // TODO: Implement get questions logic
+    // - Fetch questions from database
+    // - Filter by category and difficulty
+    // - Return paginated results
+
+    console.log("[v0] Get questions request:", { category, difficulty })
+
+    // Mock response
+    return NextResponse.json(
+      {
+        success: true,
+        questions: [
+          {
+            id: "q1",
+            text: "How would you explain the mechanism of action of our oncology drug to a busy oncologist?",
+            category: "Product",
+            difficulty: "medium",
+            tags: ["oncology", "MOA", "communication"],
+          },
+          {
+            id: "q2",
+            text: "Describe a time when you had to handle a difficult objection from a healthcare provider.",
+            category: "Communication",
+            difficulty: "hard",
+            tags: ["behavioral", "objection-handling"],
+          },
+        ],
+        total: 2,
       },
-      body: JSON.stringify(body),
-    });
-
-    const data = await apiRes.json();
-
-    if (!apiRes.ok) {
-      return new Response(JSON.stringify(data), { status: apiRes.status });
-    }
-
-    return new Response(JSON.stringify(data), { status: 201 });
-
+      { status: 200 },
+    )
   } catch (error) {
-    console.error('Start session error:', error);
-    return new Response(JSON.stringify({ error: 'Failed to start a new session' }), { status: 500 });
+    console.error("[v0] Get questions error:", error)
+    return NextResponse.json({ success: false, error: "Failed to fetch questions" }, { status: 500 })
   }
 }

@@ -1,45 +1,38 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { type NextRequest, NextResponse } from "next/server"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json()
+    const { email, password } = body
 
-    const apiRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // TODO: Implement user login logic
+    // - Validate credentials
+    // - Check password hash
+    // - Generate JWT token
+    // - Set secure HTTP-only cookie
+    // - Return user data and token
+
+    console.log("[v0] Login request:", { email })
+
+    // Mock response
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Login successful",
+        user: {
+          id: "user_123",
+          email,
+          firstName: "Sarah",
+          lastName: "Johnson",
+          organization: "DNATE Pharma",
+          role: "MSL",
+        },
+        token: "mock_jwt_token_here",
       },
-      body: JSON.stringify(body),
-    });
-
-    const data = await apiRes.json();
-
-    if (!apiRes.ok) {
-      return new Response(JSON.stringify(data), { status: apiRes.status });
-    }
-
-    const { token, user } = data;
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: '/',
-    };
-
-    // Correctly format the Set-Cookie header
-    const cookieString = `token=${token}; HttpOnly; Path=/; Max-Age=${cookieOptions.maxAge}; SameSite=Lax${cookieOptions.secure ? '; Secure' : ''}`;
-
-    const response = new Response(JSON.stringify({ user }), {
-      status: 200,
-      headers: {
-        'Set-Cookie': cookieString,
-      },
-    });
-
-    return response;
-
+      { status: 200 },
+    )
   } catch (error) {
-    console.error('Login API error:', error);
-    return new Response(JSON.stringify({ error: 'An error occurred during login' }), { status: 500 });
+    console.error("[v0] Login error:", error)
+    return NextResponse.json({ success: false, error: "Login failed" }, { status: 500 })
   }
 }
