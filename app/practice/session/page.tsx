@@ -89,7 +89,7 @@ export default function PracticeSessionPage() {
       setStage("greeting")
 
       // Create session via API
-      const sessionData = await sessionsApi.start({ personaId: persona.id })
+      const sessionData = await sessionsApi.start({ personaId: persona.personaId })
       setCurrentSession(sessionData.session)
       setResponseStartTime(Date.now())
 
@@ -264,7 +264,7 @@ export default function PracticeSessionPage() {
             <div className="grid gap-6 md:grid-cols-3">
               {personas.map((persona) => (
                 <Card
-                  key={persona.id}
+                  key={persona.personaId}
                   className="cursor-pointer transition-all hover:shadow-xl hover:scale-105"
                   onClick={() => startSession(persona)}
                 >
