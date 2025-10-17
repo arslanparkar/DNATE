@@ -4,7 +4,6 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated color system for a cohesive, professional medical/pharma aesthetic */
   --background: oklch(0.99 0 0);
   --foreground: oklch(0.15 0 0);
   --card: oklch(1 0 0);
@@ -13,8 +12,17 @@
   --popover-foreground: oklch(0.15 0 0);
 
   /* Primary: Professional Blue - Medical/Pharma Trust */
-  --primary: oklch(0.55 0.15 240);
+  --primary: oklch(0.55 0.15 240); /* #0077E6 */
   --primary-foreground: oklch(0.99 0 0);
+
+  /* Indigo for Headers */
+  --indigo: oklch(0.14 0.08 281); /* #1B0020 */
+
+  /* Graphite for Body Text */
+  --graphite: oklch(0.35 0.03 255); /* #404A69 */
+  
+  /* Gray for Secondary Text */
+  --gray: oklch(0.11 0 0); /* #1B1B1B */
 
   /* Secondary: Soft Gray for subtle elements */
   --secondary: oklch(0.96 0 0);
@@ -97,6 +105,7 @@
   --sidebar-border: oklch(0.25 0 0);
   --sidebar-ring: oklch(0.65 0.15 240);
 }
+
 
 @theme inline {
   --font-sans: "Geist", "Geist Fallback";

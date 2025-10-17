@@ -101,41 +101,50 @@ export default function PracticeSessionPage() {
   }
 
   const handleSendMessage = async (messageContent: string) => {
-    if (!currentSession) return
-
-    const timeSpent = Math.floor((Date.now() - responseStartTime) / 1000)
-
+    if (!currentSession) return;
+  
+    const userMessage: Message = {
+      id: (Date.now()).toString(),
+      role: "user",
+      content: messageContent,
+      timestamp: new Date(),
+    };
+  
+    setMessages((prev) => [...prev, userMessage]);
+  
+    const timeSpent = Math.floor((Date.now() - responseStartTime) / 1000);
+  
     try {
       await sessionsApi.answer(currentSession.sessionId, {
         questionIndex: currentQuestionIndex,
         answer: messageContent,
         timeTaken: timeSpent,
-        confidence: 0,
-      })
-
-      const nextIndex = currentQuestionIndex + 1
-
+        confidence: 0, 
+      });
+  
+      const nextIndex = currentQuestionIndex + 1;
+  
       // Simulate physician response
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+  
       if (nextIndex < currentSession.questions.length) {
-        const nextQuestion = currentSession.questions[nextIndex]
+        const nextQuestion = currentSession.questions[nextIndex];
         const questionMsg: Message = {
           id: (Date.now() + 2).toString(),
           role: "assistant",
           content: nextQuestion.text,
           timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, questionMsg])
-        setCurrentQuestionIndex(nextIndex)
-        setResponseStartTime(Date.now())
+        };
+        setMessages((prev) => [...prev, questionMsg]);
+        setCurrentQuestionIndex(nextIndex);
+        setResponseStartTime(Date.now());
       } else {
-        setStage("assessment")
+        setStage("assessment");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to submit answer")
+      setError(err.message || "Failed to submit answer");
     }
-  }
+  };
 
   const handleSubmitAssessment = async () => {
     if (!currentSession) return
