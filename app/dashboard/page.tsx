@@ -49,7 +49,7 @@ export default function DashboardPage() {
       sessions.length > 0
         ? (sessions.reduce((sum, s) => sum + (s.confidenceRating || 0), 0) / sessions.length).toFixed(1)
         : 0,
-    currentStreak: 0, // TODO: Calculate from session dates
+    currentStreak: 0,
     totalTime: sessions.reduce((sum, s) => sum + (s.duration || 0), 0),
     weeklyGoal: 5,
     completedThisWeek: sessions.filter((s) => {
@@ -66,10 +66,10 @@ export default function DashboardPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0077E6] border-t-transparent mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
     )
@@ -80,82 +80,84 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-background">
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="mb-2 text-4xl font-bold text-[#1A1A1A]">Welcome back, {user.name}</h1>
-          <p className="text-lg text-gray-600">Ready to continue your MSL interview preparation?</p>
+          <h1 className="mb-2 text-4xl font-bold text-foreground">Welcome back, {user.name}</h1>
+          <p className="text-lg text-muted-foreground">Ready to continue your MSL interview preparation?</p>
         </div>
 
-        {error && <div className="mb-6 rounded-lg bg-red-50 p-4 text-red-600 border border-red-200">{error}</div>}
+        {error && (
+          <div className="mb-6 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-destructive">
+            {error}
+          </div>
+        )}
 
-        {/* Stats Grid */}
         <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-l-4 border-l-[#0077E6] shadow-md hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-sm font-medium">Total Sessions</CardDescription>
-                <Video className="h-5 w-5 text-[#0077E6]" />
+                <Video className="h-5 w-5 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#0077E6]">{stats.totalSessions}</div>
-              <p className="mt-1 text-xs text-gray-500">
+              <div className="text-3xl font-bold text-primary">{stats.totalSessions}</div>
+              <p className="mt-1 text-xs text-muted-foreground">
                 <TrendingUp className="mr-1 inline h-3 w-3" />+{stats.completedThisWeek} this week
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-[#28A745] shadow-md hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-success shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-sm font-medium">Avg Confidence</CardDescription>
-                <Award className="h-5 w-5 text-[#28A745]" />
+                <Award className="h-5 w-5 text-success" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#28A745]">
+              <div className="text-3xl font-bold text-success">
                 {stats.avgConfidence}
-                <span className="text-lg text-gray-500">/5</span>
+                <span className="text-lg text-muted-foreground">/5</span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {stats.totalSessions > 0 ? "Great progress" : "Start practicing"}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-[#FFC107] shadow-md hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-chart-3 shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-sm font-medium">Current Streak</CardDescription>
-                <Target className="h-5 w-5 text-[#FFC107]" />
+                <Target className="h-5 w-5 text-chart-3" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#FFC107]">
+              <div className="text-3xl font-bold text-chart-3">
                 {stats.currentStreak}
-                <span className="text-lg text-gray-500"> days</span>
+                <span className="text-lg text-muted-foreground"> days</span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Keep it up!</p>
+              <p className="mt-1 text-xs text-muted-foreground">Keep it up!</p>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-[#0077E6] shadow-md hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-sm font-medium">Total Time</CardDescription>
-                <Clock className="h-5 w-5 text-[#0077E6]" />
+                <Clock className="h-5 w-5 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-[#0077E6]">
+              <div className="text-3xl font-bold text-primary">
                 {Math.round(stats.totalTime / 60)}
-                <span className="text-lg text-gray-500"> min</span>
+                <span className="text-lg text-muted-foreground"> min</span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">{Math.round(stats.totalTime / 3600)} hours total</p>
+              <p className="mt-1 text-xs text-muted-foreground">{Math.round(stats.totalTime / 3600)} hours total</p>
             </CardContent>
           </Card>
         </div>
@@ -164,7 +166,7 @@ export default function DashboardPage() {
           {/* Left Column - 2/3 width */}
           <div className="space-y-6 lg:col-span-2">
             {/* Recent Sessions */}
-            <Card className="shadow-md">
+            <Card className="shadow-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -181,10 +183,12 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {recentSessions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     <p className="mb-4">No practice sessions yet</p>
                     <Link href="/practice">
-                      <Button className="bg-[#0077E6] hover:bg-[#0056b3]">Start Your First Session</Button>
+                      <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                        Start Your First Session
+                      </Button>
                     </Link>
                   </div>
                 ) : (
@@ -192,28 +196,26 @@ export default function DashboardPage() {
                     {recentSessions.map((session) => (
                       <div
                         key={session.id}
-                        className="group flex items-start justify-between rounded-lg border p-4 transition-all hover:border-[#0077E6] hover:bg-[#F0F8FF]"
+                        className="group flex items-start justify-between rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-accent/50"
                       >
                         <div className="flex-1">
                           <div className="mb-2 flex items-center gap-2">
-                            <Badge variant="secondary" className="bg-[#E6F4FF] text-[#0077E6]">
+                            <Badge variant="secondary" className="bg-primary/10 text-primary">
                               {session.status}
                             </Badge>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {new Date(session.createdAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="mb-3 text-sm text-[#1A1A1A]">Session with {session.personaId}</p>
+                          <p className="mb-3 text-sm text-foreground">Session with {session.personaId}</p>
                           <div className="flex items-center gap-4 text-sm">
                             <div className="flex items-center gap-1">
-                              <span className="text-gray-600">Confidence:</span>
-                              <span className="font-semibold text-[#28A745]">
-                                {session.confidenceRating || "N/A"}/5
-                              </span>
+                              <span className="text-muted-foreground">Confidence:</span>
+                              <span className="font-semibold text-success">{session.confidenceRating || "N/A"}/5</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="text-gray-600">Quality:</span>
-                              <span className="font-semibold text-[#0077E6]">{session.qualityRating || "N/A"}/5</span>
+                              <span className="text-muted-foreground">Quality:</span>
+                              <span className="font-semibold text-primary">{session.qualityRating || "N/A"}/5</span>
                             </div>
                           </div>
                         </div>
@@ -221,7 +223,7 @@ export default function DashboardPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="group-hover:border-[#0077E6] group-hover:text-[#0077E6] bg-transparent"
+                            className="group-hover:border-primary group-hover:text-primary bg-transparent"
                           >
                             Review
                           </Button>
@@ -237,20 +239,20 @@ export default function DashboardPage() {
           {/* Right Column - 1/3 width */}
           <div className="space-y-6">
             {/* Weekly Goal */}
-            <Card className="shadow-md">
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg">Weekly Goal</CardTitle>
                 <CardDescription>Track your practice consistency</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-4 text-center">
-                  <div className="text-4xl font-bold text-[#0077E6]">
+                  <div className="text-4xl font-bold text-primary">
                     {stats.completedThisWeek}/{stats.weeklyGoal}
                   </div>
-                  <p className="text-sm text-gray-600">Sessions completed</p>
+                  <p className="text-sm text-muted-foreground">Sessions completed</p>
                 </div>
                 <Progress value={(stats.completedThisWeek / stats.weeklyGoal) * 100} className="mb-4 h-3" />
-                <p className="text-center text-sm text-gray-600">
+                <p className="text-center text-sm text-muted-foreground">
                   {stats.weeklyGoal - stats.completedThisWeek > 0
                     ? `${stats.weeklyGoal - stats.completedThisWeek} more to reach your goal`
                     : "Goal achieved! 🎉"}
@@ -259,26 +261,26 @@ export default function DashboardPage() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="border-[#0077E6] bg-gradient-to-br from-[#0077E6] to-[#0056b3] text-white shadow-md">
+            <Card className="border-primary bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg text-white">Ready to Practice?</CardTitle>
-                <CardDescription className="text-gray-100">Start a new session now</CardDescription>
+                <CardTitle className="text-lg">Ready to Practice?</CardTitle>
+                <CardDescription>Start a new session now</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Link href="/practice">
-                  <Button size="lg" className="w-full bg-white text-[#0077E6] hover:bg-gray-100">
+                  <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                     <Video className="mr-2 h-5 w-5" />
                     Start Practice Session
                   </Button>
                 </Link>
                 <Link href="/analytics">
-                  <Button size="sm" variant="ghost" className="w-full text-white hover:bg-white/20">
+                  <Button size="sm" variant="outline" className="w-full bg-transparent">
                     <BarChart3 className="mr-2 h-4 w-4" />
                     View Analytics
                   </Button>
                 </Link>
                 <Link href="/resources">
-                  <Button size="sm" variant="ghost" className="w-full text-white hover:bg-white/20">
+                  <Button size="sm" variant="outline" className="w-full bg-transparent">
                     <BookOpen className="mr-2 h-4 w-4" />
                     Browse Resources
                   </Button>

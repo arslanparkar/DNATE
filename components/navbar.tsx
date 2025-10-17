@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,17 +12,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Home, Video, BarChart3, BookOpen, User, LogOut, Settings } from "lucide-react"
+import { Home, Video, BarChart3, BookOpen, User, LogOut, History } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 export function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, logout } = useAuth()
 
   const isActive = (path: string) => pathname === path
 
   const handleLogout = () => {
     logout()
+    router.push("/")
   }
 
   const userInitials = user?.name
@@ -31,27 +33,28 @@ export function Navbar() {
         .map((n) => n[0])
         .join("")
         .toUpperCase()
+        .slice(0, 2)
     : "U"
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
+    <header className="sticky top-0 z-50 border-b bg-card shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#0077E6] to-[#0056b3]">
-            <span className="text-lg font-bold text-white">D</span>
+        <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md">
+            <span className="text-xl font-bold text-primary-foreground">D</span>
           </div>
-          <span className="hidden text-xl font-bold text-[#1A1A1A] md:inline">DNATE MSL Practice Gym</span>
-          <span className="text-xl font-bold text-[#1A1A1A] md:hidden">DNATE</span>
+          <div className="hidden md:block">
+            <span className="text-xl font-bold text-foreground">DNATE</span>
+            <span className="ml-2 text-sm text-muted-foreground">MSL Practice Gym</span>
+          </div>
         </Link>
 
-        {/* Navigation Links */}
         <nav className="flex items-center gap-1">
           <Link href="/dashboard">
             <Button
               variant={isActive("/dashboard") ? "default" : "ghost"}
               size="sm"
-              className={isActive("/dashboard") ? "bg-[#0077E6] hover:bg-[#0056b3]" : "hover:bg-gray-100"}
+              className={isActive("/dashboard") ? "bg-primary text-primary-foreground" : ""}
             >
               <Home className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -62,7 +65,7 @@ export function Navbar() {
             <Button
               variant={isActive("/practice") ? "default" : "ghost"}
               size="sm"
-              className={isActive("/practice") ? "bg-[#0077E6] hover:bg-[#0056b3]" : "hover:bg-gray-100"}
+              className={isActive("/practice") ? "bg-primary text-primary-foreground" : ""}
             >
               <Video className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Practice</span>
@@ -73,7 +76,7 @@ export function Navbar() {
             <Button
               variant={isActive("/analytics") ? "default" : "ghost"}
               size="sm"
-              className={isActive("/analytics") ? "bg-[#0077E6] hover:bg-[#0056b3]" : "hover:bg-gray-100"}
+              className={isActive("/analytics") ? "bg-primary text-primary-foreground" : ""}
             >
               <BarChart3 className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -84,7 +87,7 @@ export function Navbar() {
             <Button
               variant={isActive("/resources") ? "default" : "ghost"}
               size="sm"
-              className={isActive("/resources") ? "bg-[#0077E6] hover:bg-[#0056b3]" : "hover:bg-gray-100"}
+              className={isActive("/resources") ? "bg-primary text-primary-foreground" : ""}
             >
               <BookOpen className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Resources</span>
@@ -92,44 +95,44 @@ export function Navbar() {
           </Link>
         </nav>
 
-        {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
+              <Avatar className="h-10 w-10 border-2 border-primary/20">
                 <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
-                <AvatarFallback className="bg-[#0077E6] text-white">{userInitials}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                  {userInitials}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuContent className="w-64" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
-                <p className="text-xs leading-none text-gray-500">{user?.email || ""}</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold leading-none text-foreground">{user?.name || "User"}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user?.email || ""}</p>
+                {user?.role && (
+                  <span className="inline-flex w-fit rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                    {user.role}
+                  </span>
+                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/profile" className="flex cursor-pointer items-center">
                 <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+                <span>Profile & Settings</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/sessions" className="flex cursor-pointer items-center">
-                <Video className="mr-2 h-4 w-4" />
+                <History className="mr-2 h-4 w-4" />
                 <span>My Sessions</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/profile" className="flex cursor-pointer items-center">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
+            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
