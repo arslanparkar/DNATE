@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,53 +18,27 @@ import {
   CheckCircle2,
   AlertCircle,
   Target,
-  Loader2,
+  Play,
+  BarChart2,
 } from "lucide-react"
-import { sessionsApi } from "@/lib/api"
+import { DUMMY_SESSIONS, DUMMY_QUESTIONS } from "@/lib/dummy-data"
 
 export default function SessionReviewPage() {
   const params = useParams()
-  const router = useRouter()
   const sessionId = params.id as string
-
   const [session, setSession] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [question, setQuestion] = useState<any>(null)
 
   useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        setLoading(true)
-        const { session: sessionData } = await sessionsApi.getById(sessionId)
-        setSession(sessionData)
-      } catch (err: any) {
-        console.error("[v0] Failed to fetch session:", err)
-        setError(err.message || "Failed to load session details")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (sessionId) {
-      fetchSession()
+    const foundSession = DUMMY_SESSIONS.find((s) => s.id === sessionId)
+    if (foundSession) {
+      setSession(foundSession)
+      const foundQuestion = DUMMY_QUESTIONS.find((q) => q.id === foundSession.questionId)
+      setQuestion(foundQuestion)
     }
   }, [sessionId])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 text-muted-foreground">Loading session details...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !session) {
+  if (!session) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -75,8 +49,8 @@ export default function SessionReviewPage() {
                 <div className="flex items-start gap-4">
                   <AlertCircle className="h-6 w-6 text-destructive flex-shrink-0" />
                   <div>
-                    <h3 className="mb-2 font-semibold text-destructive">Unable to Load Session</h3>
-                    <p className="mb-4 text-sm text-muted-foreground">{error || "Session not found"}</p>
+                    <h3 className="mb-2 font-semibold text-destructive">Session Not Found</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">The session you're looking for doesn't exist.</p>
                     <Link href="/sessions">
                       <Button variant="outline">Back to Sessions</Button>
                     </Link>
@@ -90,9 +64,8 @@ export default function SessionReviewPage() {
     )
   }
 
-  const confidencePercentage = ((session.confidenceRating || 0) / 5) * 100
-  const qualityPercentage = ((session.qualityRating || 0) / 5) * 100
-  const overallScore = ((confidencePercentage + qualityPercentage) / 2).toFixed(0)
+  const analysis = session.analysis || {}
+  const overallScore = analysis.overallScore || 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,13 +87,12 @@ export default function SessionReviewPage() {
               <h1 className="mb-2 text-3xl font-bold text-foreground">Session Review</h1>
               <p className="text-muted-foreground">Detailed analysis of your practice session</p>
             </div>
-            <Badge variant={session.status === "completed" ? "default" : "secondary"} className="text-sm">
-              {session.status}
+            <Badge variant="default" className="bg-success text-white">
+              Completed
             </Badge>
           </div>
         </div>
 
-        {/* Overall Performance Card */}
         <Card className="mb-6 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -134,7 +106,16 @@ export default function SessionReviewPage() {
                 <div className="text-6xl font-bold text-primary">{overallScore}%</div>
                 <p className="text-sm text-muted-foreground">Overall Score</p>
               </div>
-              <Progress value={Number(overallScore)} className="h-3" />
+              <Progress value={overallScore} className="h-3 mb-4" />
+              <p className="text-sm text-muted-foreground">
+                {overallScore >= 90
+                  ? "Outstanding performance!"
+                  : overallScore >= 80
+                    ? "Excellent work!"
+                    : overallScore >= 70
+                      ? "Good job!"
+                      : "Keep practicing!"}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -142,6 +123,29 @@ export default function SessionReviewPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Session Details */}
           <div className="space-y-6 lg:col-span-2">
+            {question && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Question Practiced</CardTitle>
+                  <CardDescription>The scenario you responded to</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Badge className="mb-3">{question.category}</Badge>
+                    <p className="text-lg font-medium text-foreground leading-relaxed">{question.text}</p>
+                  </div>
+                  <div className="rounded-lg bg-accent/50 p-4">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      <strong>Context:</strong> {question.context}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Difficulty:</strong> {question.difficulty}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Session Info */}
             <Card>
               <CardHeader>
@@ -168,60 +172,105 @@ export default function SessionReviewPage() {
                   <Clock className="h-5 w-5 text-primary" />
                   <div>
                     <p className="text-sm font-medium">Duration</p>
-                    <p className="text-sm text-muted-foreground">
-                      {Math.floor((session.duration || 0) / 60)} minutes {(session.duration || 0) % 60} seconds
-                    </p>
+                    <p className="text-sm text-muted-foreground">{session.duration} seconds</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 rounded-lg border p-3">
                   <Target className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="text-sm font-medium">Physician</p>
-                    <p className="text-sm text-muted-foreground">{session.personaId || "Practice Physician"}</p>
+                    <p className="text-sm font-medium">Physician Persona</p>
+                    <p className="text-sm text-muted-foreground">{session.personaId}</p>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border p-3 bg-accent/30">
+                  <Play className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Recording</p>
+                    <p className="text-sm text-muted-foreground">Video available for review</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Play className="mr-2 h-3 w-3" />
+                    Watch
+                  </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Performance Metrics */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Performance Metrics
+                  <BarChart2 className="h-5 w-5" />
+                  Detailed Performance Metrics
                 </CardTitle>
-                <CardDescription>Your self-assessment ratings</CardDescription>
+                <CardDescription>Breakdown of your response quality</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium">Confidence Level</span>
-                    <span className="text-2xl font-bold text-primary">{session.confidenceRating || 0}/5</span>
+                {Object.entries(analysis.metrics || {}).map(([key, value]: [string, any]) => (
+                  <div key={key}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium capitalize">{key}</span>
+                      <span className="text-2xl font-bold text-primary">{value}%</span>
+                    </div>
+                    <Progress value={value} className="h-3" />
                   </div>
-                  <Progress value={confidencePercentage} className="h-3" />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {confidencePercentage >= 80
-                      ? "Excellent confidence!"
-                      : confidencePercentage >= 60
-                        ? "Good confidence level"
-                        : "Room for improvement"}
-                  </p>
+                ))}
+
+                <div className="pt-4 border-t">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-medium">Self-Rated Confidence</span>
+                    <span className="text-2xl font-bold text-success">{session.confidenceRating}/5</span>
+                  </div>
+                  <Progress value={(session.confidenceRating / 5) * 100} className="h-3" />
                 </div>
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium">Response Quality</span>
-                    <span className="text-2xl font-bold text-success">{session.qualityRating || 0}/5</span>
+                    <span className="text-sm font-medium">Self-Rated Quality</span>
+                    <span className="text-2xl font-bold text-chart-3">{session.qualityRating}/5</span>
                   </div>
-                  <Progress value={qualityPercentage} className="h-3" />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {qualityPercentage >= 80
-                      ? "Outstanding quality!"
-                      : qualityPercentage >= 60
-                        ? "Solid response quality"
-                        : "Focus on improving clarity"}
-                  </p>
+                  <Progress value={(session.qualityRating / 5) * 100} className="h-3" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Analysis & Feedback
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Strengths
+                  </h4>
+                  <ul className="space-y-2">
+                    {(analysis.strengths || []).map((strength: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-success flex-shrink-0" />
+                        <span>{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-chart-3">
+                    <AlertCircle className="h-4 w-4" />
+                    Areas for Improvement
+                  </h4>
+                  <ul className="space-y-2">
+                    {(analysis.improvements || []).map((improvement: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-chart-3 flex-shrink-0" />
+                        <span>{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </CardContent>
             </Card>
@@ -253,23 +302,18 @@ export default function SessionReviewPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg bg-primary/10 p-3">
-                  <span className="text-sm font-medium">Questions Answered</span>
-                  <span className="text-xl font-bold text-primary">{session.questions?.length || 0}</span>
+                  <span className="text-sm font-medium">Overall Score</span>
+                  <span className="text-xl font-bold text-primary">{overallScore}%</span>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg bg-success/10 p-3">
-                  <span className="text-sm font-medium">Avg Response Time</span>
-                  <span className="text-xl font-bold text-success">
-                    {session.duration && session.questions?.length
-                      ? Math.round(session.duration / session.questions.length)
-                      : 0}
-                    s
-                  </span>
+                  <span className="text-sm font-medium">Response Time</span>
+                  <span className="text-xl font-bold text-success">{session.duration}s</span>
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg bg-chart-3/10 p-3">
-                  <span className="text-sm font-medium">Session Type</span>
-                  <span className="text-sm font-semibold text-chart-3">Practice</span>
+                  <span className="text-sm font-medium">Difficulty</span>
+                  <span className="text-sm font-semibold text-chart-3">{question?.difficulty || "Medium"}</span>
                 </div>
               </CardContent>
             </Card>
@@ -279,25 +323,25 @@ export default function SessionReviewPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-success" />
-                  Recommendations
+                  Next Steps
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5 h-2 w-2 rounded-full bg-success flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
-                    {confidencePercentage < 60 ? "Practice more to build confidence" : "Maintain your confidence level"}
+                    {overallScore >= 85
+                      ? "Excellent! Try a harder question category"
+                      : "Practice similar questions to build confidence"}
                   </p>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5 h-2 w-2 rounded-full bg-success flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">
-                    {qualityPercentage < 60 ? "Focus on structuring your responses" : "Keep up the quality work"}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Review the sample response for this question</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="mt-0.5 h-2 w-2 rounded-full bg-success flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">Review resources for continuous improvement</p>
+                  <p className="text-sm text-muted-foreground">Watch your recording to identify improvement areas</p>
                 </div>
               </CardContent>
             </Card>

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,41 +15,21 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Home, Video, BarChart3, BookOpen, User, LogOut, History, TrendingUp } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { sessionsApi } from "@/lib/api"
+import { DUMMY_SESSIONS } from "@/lib/dummy-data"
 
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
-  const [recentSessions, setRecentSessions] = useState<any[]>([])
-  const [sessionStats, setSessionStats] = useState({ total: 0, avgConfidence: 0 })
+  const [recentSessions] = useState(DUMMY_SESSIONS.slice(0, 3))
+  const [sessionStats] = useState({
+    total: DUMMY_SESSIONS.length,
+    avgConfidence: (
+      DUMMY_SESSIONS.reduce((sum, s) => sum + (s.confidenceRating || 0), 0) / DUMMY_SESSIONS.length
+    ).toFixed(1),
+  })
 
   const isActive = (path: string) => pathname === path
-
-  useEffect(() => {
-    const fetchSessionData = async () => {
-      if (!user) return
-      try {
-        const { sessions } = await sessionsApi.getAll()
-        const recent = sessions
-          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 3)
-        setRecentSessions(recent)
-
-        const avgConf =
-          sessions.length > 0
-            ? sessions.reduce((sum: number, s: any) => sum + (s.confidenceRating || 0), 0) / sessions.length
-            : 0
-        setSessionStats({ total: sessions.length, avgConfidence: avgConf })
-      } catch (error) {
-        console.error("[v0] Failed to fetch sessions:", error)
-      }
-    }
-
-    if (user) {
-      fetchSessionData()
-    }
-  }, [user])
 
   const handleLogout = () => {
     logout()
@@ -161,7 +141,7 @@ export function Navbar() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Avg Confidence</p>
-                  <p className="text-lg font-bold text-success">{sessionStats.avgConfidence.toFixed(1)}/5</p>
+                  <p className="text-lg font-bold text-success">{sessionStats.avgConfidence}/5</p>
                 </div>
               </div>
             </div>
@@ -187,8 +167,8 @@ export function Navbar() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground">Confidence:</span>
-                            <span className="font-semibold text-success">{session.confidenceRating || "N/A"}/5</span>
+                            <span className="text-muted-foreground">Score:</span>
+                            <span className="font-semibold text-success">{session.analysis?.overallScore}%</span>
                           </div>
                         </div>
                       </Link>

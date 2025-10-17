@@ -8,16 +8,15 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
-import { TrendingUp, Target, Clock, Award, Video, BarChart3, BookOpen, ArrowRight } from "lucide-react"
+import { TrendingUp, Clock, Award, Video, BarChart3, BookOpen, ArrowRight, Flame } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { sessionsApi } from "@/lib/api"
+import { DUMMY_SESSIONS, getCategoryStats, getStreakData } from "@/lib/dummy-data"
 
 export default function DashboardPage() {
   const router = useRouter()
   const { user, isLoading: authLoading } = useAuth()
-  const [sessions, setSessions] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [sessions] = useState(DUMMY_SESSIONS)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -25,31 +24,14 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router])
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      if (!user) return
-
-      try {
-        const { sessions: sessionsData } = await sessionsApi.getAll()
-        setSessions(sessionsData)
-      } catch (err) {
-        console.error("Failed to fetch sessions:", err)
-        setError("Failed to load sessions")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchSessions()
-  }, [user])
-
   const stats = {
     totalSessions: sessions.length,
     avgConfidence:
       sessions.length > 0
         ? (sessions.reduce((sum, s) => sum + (s.confidenceRating || 0), 0) / sessions.length).toFixed(1)
-        : 0,
-    currentStreak: 0,
+        : "0",
+    currentStreak: getStreakData(sessions).currentStreak,
+    longestStreak: getStreakData(sessions).longestStreak,
     totalTime: sessions.reduce((sum, s) => sum + (s.duration || 0), 0),
     weeklyGoal: 5,
     completedThisWeek: sessions.filter((s) => {
@@ -58,8 +40,13 @@ export default function DashboardPage() {
       weekAgo.setDate(weekAgo.getDate() - 7)
       return sessionDate >= weekAgo
     }).length,
+    avgScore:
+      sessions.length > 0
+        ? Math.round(sessions.reduce((sum, s) => sum + (s.analysis?.overallScore || 0), 0) / sessions.length)
+        : 0,
   }
 
+  const categoryStats = getCategoryStats(sessions)
   const recentSessions = sessions
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3)
@@ -89,12 +76,6 @@ export default function DashboardPage() {
           <p className="text-lg text-muted-foreground">Ready to continue your MSL interview preparation?</p>
         </div>
 
-        {error && (
-          <div className="mb-6 rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-destructive">
-            {error}
-          </div>
-        )}
-
         <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
@@ -114,18 +95,16 @@ export default function DashboardPage() {
           <Card className="border-l-4 border-l-success shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardDescription className="text-sm font-medium">Avg Confidence</CardDescription>
+                <CardDescription className="text-sm font-medium">Avg Performance</CardDescription>
                 <Award className="h-5 w-5 text-success" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-success">
-                {stats.avgConfidence}
-                <span className="text-lg text-muted-foreground">/5</span>
+                {stats.avgScore}
+                <span className="text-lg text-muted-foreground">%</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {stats.totalSessions > 0 ? "Great progress" : "Start practicing"}
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Confidence: {stats.avgConfidence}/5</p>
             </CardContent>
           </Card>
 
@@ -133,7 +112,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardDescription className="text-sm font-medium">Current Streak</CardDescription>
-                <Target className="h-5 w-5 text-chart-3" />
+                <Flame className="h-5 w-5 text-chart-3" />
               </div>
             </CardHeader>
             <CardContent>
@@ -141,7 +120,7 @@ export default function DashboardPage() {
                 {stats.currentStreak}
                 <span className="text-lg text-muted-foreground"> days</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Keep it up!</p>
+              <p className="mt-1 text-xs text-muted-foreground">Best: {stats.longestStreak} days</p>
             </CardContent>
           </Card>
 
@@ -157,7 +136,7 @@ export default function DashboardPage() {
                 {Math.round(stats.totalTime / 60)}
                 <span className="text-lg text-muted-foreground"> min</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{Math.round(stats.totalTime / 3600)} hours total</p>
+              <p className="mt-1 text-xs text-muted-foreground">{(stats.totalTime / 3600).toFixed(1)} hours total</p>
             </CardContent>
           </Card>
         </div>
@@ -165,6 +144,31 @@ export default function DashboardPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - 2/3 width */}
           <div className="space-y-6 lg:col-span-2">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Performance by Category</CardTitle>
+                <CardDescription>Track your progress across question types</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {categoryStats.map((cat) => (
+                  <div key={cat.category} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-foreground">{cat.category}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-muted-foreground">
+                          {cat.sessionsCompleted}/{cat.totalQuestions} completed
+                        </span>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary">
+                          {cat.avgConfidence > 0 ? `${cat.avgConfidence}/5` : "Not started"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Progress value={cat.progress} className="h-2" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
             {/* Recent Sessions */}
             <Card className="shadow-sm">
               <CardHeader>
@@ -182,56 +186,42 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {recentSessions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p className="mb-4">No practice sessions yet</p>
-                    <Link href="/practice">
-                      <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                        Start Your First Session
-                      </Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {recentSessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className="group flex items-start justify-between rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-accent/50"
-                      >
-                        <div className="flex-1">
-                          <div className="mb-2 flex items-center gap-2">
-                            <Badge variant="secondary" className="bg-primary/10 text-primary">
-                              {session.status}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(session.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="mb-3 text-sm text-foreground">Session with {session.personaId}</p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">Confidence:</span>
-                              <span className="font-semibold text-success">{session.confidenceRating || "N/A"}/5</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">Quality:</span>
-                              <span className="font-semibold text-primary">{session.qualityRating || "N/A"}/5</span>
-                            </div>
-                          </div>
+                <div className="space-y-4">
+                  {recentSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="group flex items-start justify-between rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-accent/50"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-2 flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-success/10 text-success">
+                            Completed
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(session.createdAt).toLocaleDateString()}
+                          </span>
                         </div>
-                        <Link href={`/sessions/${session.id}`}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="group-hover:border-primary group-hover:text-primary bg-transparent"
-                          >
-                            Review
-                          </Button>
-                        </Link>
+                        <p className="mb-3 text-sm text-foreground font-medium">
+                          Score: {session.analysis?.overallScore}% • Confidence: {session.confidenceRating}/5
+                        </p>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{session.duration}s</span>
+                          <span>•</span>
+                          <span>{session.personaId}</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <Link href={`/sessions/${session.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="group-hover:border-primary group-hover:text-primary bg-transparent"
+                        >
+                          Review
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
