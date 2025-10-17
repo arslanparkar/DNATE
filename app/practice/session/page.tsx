@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowLeft, Send, Mic, Video, RotateCcw, CheckCircle2, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { personasApi, questionsApi, sessionsApi } from "@/lib/api"
+import { personasApi, sessionsApi } from "@/lib/api"
 
 type Message = {
   id: string
@@ -21,13 +21,11 @@ type Message = {
 type SessionStage = "setup" | "greeting" | "question" | "responding" | "assessment" | "complete"
 
 export default function PracticeSessionPage() {
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const questionId = searchParams.get("questionId")
 
   const [personas, setPersonas] = useState<any[]>([])
-  const [currentQuestion, setCurrentQuestion] = useState<any>(null)
   const [currentSession, setCurrentSession] = useState<any>(null)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,130 +52,96 @@ export default function PracticeSessionPage() {
       try {
         setLoading(true)
         setError(null)
-
-        console.log("[v0] Fetching personas and questions...")
-
         const personasData = await personasApi.getAll()
-        console.log("[v0] Personas received:", personasData)
         setPersonas(personasData.personas || [])
-
-        if (questionId) {
-          console.log("[v0] Fetching specific question:", questionId)
-          const questionData = await questionsApi.getById(questionId)
-          console.log("[v0] Question received:", questionData)
-          setCurrentQuestion(questionData.question)
-        } else {
-          console.log("[v0] Fetching random question...")
-          const randomQuestion = await questionsApi.getRandom()
-          console.log("[v0] Random question received:", randomQuestion)
-          setCurrentQuestion(randomQuestion.question)
-        }
       } catch (err: any) {
         console.error("[v0] Error fetching data:", err)
-        setError(err.message || "Failed to load practice session data. The backend API may not be ready yet.")
+        setError(err.message || "Failed to load practice session data.")
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [questionId])
+  }, [])
 
   const startSession = async (persona: any) => {
     try {
       setSelectedPersona(persona)
       setStage("greeting")
 
-      // Create session via API
       const sessionData = await sessionsApi.start({ personaId: persona.personaId })
       setCurrentSession(sessionData.session)
-      setResponseStartTime(Date.now())
+      setCurrentQuestionIndex(0)
 
-      // Add system message
-      const systemMsg: Message = {
-        id: "1",
-        role: "system",
-        content: `Practice session started with ${persona.name}`,
-        timestamp: new Date(),
-      }
-
-      // Add greeting from physician
+      const systemMsg: Message = { id: "1", role: "system", content: `Practice session started with ${persona.name}`, timestamp: new Date() };
+      
       setTimeout(() => {
-        const greetingMsg: Message = {
-          id: "2",
-          role: "physician",
-          content: persona.greeting || `Hello, I'm ${persona.name}. What can you tell me about this therapy?`,
-          timestamp: new Date(),
-        }
+        const greetingMsg: Message = { id: "2", role: "physician", content: persona.greeting || `Hello, I'm ${persona.name}.`, timestamp: new Date() };
         setMessages([systemMsg, greetingMsg])
 
-        // After greeting, show the question
         setTimeout(() => {
-          const questionMsg: Message = {
-            id: "3",
-            role: "physician",
-            content: currentQuestion?.text || "Tell me more about this treatment.",
-            timestamp: new Date(),
-          }
+          const firstQuestion = sessionData.session.questions[0];
+          const questionMsg: Message = { id: "3", role: "physician", content: firstQuestion.text, timestamp: new Date() };
           setMessages((prev) => [...prev, questionMsg])
           setStage("question")
-        }, 2000)
+          setResponseStartTime(Date.now())
+        }, 1500)
       }, 500)
     } catch (err: any) {
       setError(err.message || "Failed to start session")
+      setStage("setup");
     }
   }
 
   const handleSendResponse = async () => {
-    if (!userResponse.trim() || !currentSession || !currentQuestion) return
+    if (!userResponse.trim() || !currentSession) return;
 
-    const responseMsg: Message = {
-      id: Date.now().toString(),
-      role: "msl",
-      content: userResponse,
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, responseMsg])
-
-    // Calculate time spent
-    const timeSpent = Math.floor((Date.now() - responseStartTime) / 1000)
+    const responseMsg: Message = { id: Date.now().toString(), role: "msl", content: userResponse, timestamp: new Date() };
+    setMessages((prev) => [...prev, responseMsg]);
+    
+    const timeSpent = Math.floor((Date.now() - responseStartTime) / 1000);
 
     try {
-      // Submit answer to API
-      await sessionsApi.answer(currentSession.id, {
-        questionId: currentQuestion.id,
+      // Use 'submitAnswer' which expects 'questionIndex'
+      await sessionsApi.answer(currentSession.sessionId, {
+        questionIndex: currentQuestionIndex,
         answer: userResponse,
-        timeSpent,
-      })
+        timeTaken: timeSpent,
+        confidence: 0 // Placeholder, as this is submitted later
+      });
 
-      setUserResponse("")
+      setUserResponse("");
+      const nextIndex = currentQuestionIndex + 1;
 
       // Physician acknowledgment
       setTimeout(() => {
-        const ackMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "physician",
-          content: "Thank you for that explanation. I appreciate you taking the time to address my concerns.",
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, ackMsg])
+        const ackMsg: Message = { id: (Date.now() + 1).toString(), role: "physician", content: "Thank you for that explanation.", timestamp: new Date() };
+        setMessages((prev) => [...prev, ackMsg]);
 
-        // Move to assessment
+        // Move to next question or assessment
         setTimeout(() => {
-          setStage("assessment")
+          if (nextIndex < currentSession.questions.length) {
+            const nextQuestion = currentSession.questions[nextIndex];
+            const questionMsg: Message = { id: (Date.now() + 2).toString(), role: "physician", content: nextQuestion.text, timestamp: new Date() };
+            setMessages((prev) => [...prev, questionMsg]);
+            setCurrentQuestionIndex(nextIndex);
+            setResponseStartTime(Date.now());
+          } else {
+            setStage("assessment");
+          }
         }, 1500)
-      }, 1000)
+      }, 1000);
+
     } catch (err: any) {
-      setError(err.message || "Failed to submit answer")
+      setError(err.message || "Failed to submit answer");
     }
   }
 
   const handleSubmitAssessment = async () => {
-    if (!currentSession) return
-
+    if (!currentSession) return;
     try {
-      await sessionsApi.complete(currentSession.id, {
+      await sessionsApi.complete(currentSession.sessionId, {
         confidenceRating: confidence,
         qualityRating: quality,
         notes,
@@ -192,6 +156,11 @@ export default function PracticeSessionPage() {
     router.push("/practice")
   }
 
+  const currentQuestion = currentSession?.questions[currentQuestionIndex];
+
+  // ... (rest of the component remains largely the same, this was the core logic change)
+
+  // RENDER LOGIC HERE (NO CHANGES NEEDED TO THE JSX)
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F5F5F5]">
