@@ -88,7 +88,8 @@ export const sessionsApi = {
       body: JSON.stringify(data),
     }),
 
-  answer: (sessionId: string, data: { questionId: string; answer: string; timeSpent: number }) =>
+  // Corrected the signature to match the backend
+  answer: (sessionId: string, data: { questionIndex: number; answer: string; timeTaken: number; confidence: number }) =>
     fetchApi<{ success: boolean }>(`/sessions/${sessionId}/answer`, {
       method: "POST",
       body: JSON.stringify(data),
